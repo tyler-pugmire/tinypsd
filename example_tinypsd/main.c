@@ -11,4 +11,19 @@ int main(int argc, char** argv)
   {
 
   }
+  const unsigned totalPixels = psd.header.width * psd.header.height;
+  unsigned char *pixelData = TPSD_ALLOC(4 * totalPixels);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 4] = psd.imageData.red[i];
+    pixelData[i * 4 + 1] = psd.imageData.green[i];
+    pixelData[i * 4 + 2] = psd.imageData.blue[i];
+    pixelData[i * 4 + 3] = psd.imageData.alpha[i];
+  }
+
+  stbi_write_png("test.png", psd.header.width, psd.header.height, 4, pixelData, psd.header.width * 4);
+  TPSD_FREE(pixelData);
 }
