@@ -5,29 +5,29 @@
 #### Supported Formats
 
 - [X] PSD
-- [] PSB
+- [ ] PSB
 
 #### Supported Compressions
 
-- [] Raw(untested)
+- [ ] Raw(untested)
 - [X] RLE
 - [ ] Zip without Prediction
 - [ ] Zip with Prediction
 
 #### Supported Color Modes
 
-- [] Bitmap
-- [] Grayscale
-- [] Indexed
+- [ ] Bitmap
+- [ ] Grayscale
+- [ ] Indexed
 - [X] RGB
-- [] CMYK
-- [] Multichannel
-- [] Duotone
-- [] Lab
+- [ ] CMYK
+- [ ] Multichannel
+- [ ] Duotone
+- [ ] Lab
 
 #### Supported Depths
 
-- [] 1-bit (Bitmap)
+- [ ] 1-bit (Bitmap)
 - [X] 8-bits
-- [] 16-bits
+- [ ] 16-bits
 - [ ] 32-bits
