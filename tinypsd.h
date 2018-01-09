@@ -69,6 +69,7 @@ struct tpsdBitmapImage
 struct tpsdGrayscaleImage
 {
   unsigned char* data;
+  unsigned char* alpha;
 };
 
 struct tpsdRGBImage
@@ -226,7 +227,7 @@ tpsdColorModeData tpsdParseColorModeData(unsigned char* data, unsigned* offset)
   return cmd;
 }
 
-tpsdImageResource tpsdParseImageResource(unsigned unsigned char* data, unsigned* offset)
+tpsdImageResource tpsdParseImageResource(unsigned char* data, unsigned* offset)
 {
   tpsdImageResource imageResource = { 0 };
 
@@ -330,6 +331,15 @@ void tpsdProcessGrayscale8(tpsdPSD* psd)
   memcpy(psd->compositeImage.grayscale.data, psd->imageData.data, totalPixels);
 }
 
+void tpsdProcessGrayscale8Alpha(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.grayscale.data = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.grayscale.data, psd->imageData.data, totalPixels);
+  psd->compositeImage.grayscale.alpha = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.grayscale.alpha, psd->imageData.data + totalPixels, totalPixels);
+}
+
 void tpsdProcessRGB8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
@@ -423,7 +433,11 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
     switch (psd->header.depth)
     {
     case 8:
-      tpsdProcessGrayscale8(psd);
+      if (psd->header.numChannels == 1)
+        tpsdProcessGrayscale8(psd);
+      else
+        tpsdProcessGrayscale8Alpha(psd);
+      break;
       break;
     case 16:
       break;

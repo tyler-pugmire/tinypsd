@@ -14,35 +14,23 @@ unsigned char CMYKtoRGB(unsigned char cmy, unsigned char k)
 int main(int argc, char** argv)
 {
   tpsdPSD psd;
-  if (tpsdLoadPSD(&psd, "imgs/checkerboard_bitmap.psd") == TPSD_LOAD_ERROR)
+  if (tpsdLoadPSD(&psd, "imgs/Cloud.psd") == TPSD_LOAD_ERROR)
   {
 
   }
   const unsigned totalPixels = psd.header.width * psd.header.height;
-  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 8);
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 4);
   if (!pixelData)
     return 0;
 
   for (unsigned i = 0; i < totalPixels; ++i)
   {
-    int bit1 = GET_BIT(psd.compositeImage.bitmap.data[i], 0);
-    int bit2 = GET_BIT(psd.compositeImage.bitmap.data[i], 1);
-    int bit3 = GET_BIT(psd.compositeImage.bitmap.data[i], 2);
-    int bit4 = GET_BIT(psd.compositeImage.bitmap.data[i], 3);
-    int bit5 = GET_BIT(psd.compositeImage.bitmap.data[i], 4);
-    int bit6 = GET_BIT(psd.compositeImage.bitmap.data[i], 5);
-    int bit7 = GET_BIT(psd.compositeImage.bitmap.data[i], 6);
-    int bit8 = GET_BIT(psd.compositeImage.bitmap.data[i], 7);
-    pixelData[i * 8] = bit1 * 255;
-    pixelData[i * 8 + 1] = bit2 * 255;
-    pixelData[i * 8 + 2] = bit3 * 255;
-    pixelData[i * 8 + 3] = bit4 * 255;
-    pixelData[i * 8 + 4] = bit5 * 255;
-    pixelData[i * 8 + 5] = bit6 * 255;
-    pixelData[i * 8 + 6] = bit7 * 255;
-    pixelData[i * 8 + 7] = bit8 * 255;
+    pixelData[i * 4] = psd.compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 1] = psd.compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 2] = psd.compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 3] = 255 - psd.compositeImage.grayscale.alpha[i];
   }
 
-  stbi_write_png("test.png", psd.header.width, psd.header.height, 1, pixelData, psd.header.width);
+  stbi_write_png("test.png", psd.header.width, psd.header.height, 4, pixelData, psd.header.width * 4);
   TPSD_FREE(pixelData);
 }
