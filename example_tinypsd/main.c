@@ -4,10 +4,15 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+unsigned char CMYKtoRGB(unsigned char cmy, unsigned char k)
+{
+  return (65535 - (cmy * (255 - k) + (k << 8))) >> 8;
+}
+
 int main(int argc, char** argv)
 {
   tpsdPSD psd;
-  if (tpsdLoadPSD(&psd, "imgs/medium_mech_color_00.psd") == TPSD_LOAD_ERROR)
+  if (tpsdLoadPSD(&psd, "imgs/test_rgba.psd") == TPSD_LOAD_ERROR)
   {
 
   }
@@ -18,10 +23,10 @@ int main(int argc, char** argv)
 
   for (unsigned i = 0; i < totalPixels; ++i)
   {
-    pixelData[i * 4] = psd.imageData.red[i];
-    pixelData[i * 4 + 1] = psd.imageData.green[i];
-    pixelData[i * 4 + 2] = psd.imageData.blue[i];
-    pixelData[i * 4 + 3] = psd.imageData.alpha[i];
+    pixelData[i * 4] = psd.compositeImage.rgb.red[i];
+    pixelData[i * 4 + 1] = psd.compositeImage.rgb.green[i];
+    pixelData[i * 4 + 2] = psd.compositeImage.rgb.blue[i];
+    pixelData[i * 4 + 3] = psd.compositeImage.rgb.alpha[i];
   }
 
   stbi_write_png("test.png", psd.header.width, psd.header.height, 4, pixelData, psd.header.width * 4);

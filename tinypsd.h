@@ -17,6 +17,13 @@ typedef struct tpsdColorModeData tpsdColorModeData;
 typedef struct tpsdImageResource tpsdImageResource;
 typedef struct tpsdImageResourceBlock tpsdImageResourceBlock;
 typedef struct tpsdImageData tpsdImageData;
+
+typedef struct tpsdBitmapImage tpsdBitmapImage;
+typedef struct tpsdGrayscaleImage tpsdGrayscaleImage;
+typedef struct tpsdRGBImage tpsdRGBImage;
+typedef struct tpsdCMYKImage tpsdCMYKImage;
+
+typedef struct tpsdCompositeImage tpsdCompositeImage;
 typedef struct tpsdPSD tpsdPSD;
 
 int tpsdLoadPSD(tpsdPSD* psd, char const* file);
@@ -54,13 +61,48 @@ struct tpsdImageResourceBlock
   char* data; //The resource data. It is padded to make the size even.
 };
 
+struct tpsdBitmapImage
+{
+  unsigned char* data;
+};
+
+struct tpsdGrayscaleImage
+{
+  unsigned char* data;
+};
+
+struct tpsdRGBImage
+{
+  unsigned char* red;
+  unsigned char* green;
+  unsigned char* blue;
+  unsigned char* alpha;
+};
+
+struct tpsdCMYKImage
+{
+  unsigned char* cyan;
+  unsigned char* magenta;
+  unsigned char* yellow;
+  unsigned char* key;
+  unsigned char* alpha;
+};
+
+struct tpsdCompositeImage
+{
+  union
+  {
+    tpsdBitmapImage bitmap;
+    tpsdGrayscaleImage grayscale;
+    tpsdRGBImage rgb;
+    tpsdCMYKImage cmyk;
+  };
+};
+
 struct tpsdImageData
 {
   short compressionMethod;
-  char* red;
-  char* green;
-  char* blue;
-  char* alpha;
+  char* data;
 };
 
 struct tpsdPSD
@@ -69,6 +111,7 @@ struct tpsdPSD
   tpsdColorModeData colorModeData;
   tpsdImageResource imageResource;
   tpsdImageData imageData;
+  tpsdCompositeImage compositeImage;
 };
 
 ////   end header file   /////////////////////////////////////////////////////
@@ -105,9 +148,9 @@ struct tpsdPSD
 #define TPSD_MEMCPY memcpy
 #define TPSD_CALLOC calloc
 
-static char* tpsdReadFileToMemory(const char* path, int* size)
+static unsigned char* tpsdReadFileToMemory(const char* path, int* size)
 {
-  char* data = 0;
+  unsigned char* data = 0;
   FILE* fp = fopen(path, "rb");
   int sizeNum = 0;
 
@@ -126,148 +169,110 @@ static char* tpsdReadFileToMemory(const char* path, int* size)
   return data;
 }
 
-char tpsdGetChar(char* data, int offset)
-{
-  return data[offset];
-}
-
-unsigned char tpsdGetUnsignedChar(char* data, int offset)
-{
-  return (unsigned char)data[offset];
-}
-
-unsigned short tpsdGetShort(char* data, int offset)
-{
-  return (short)(((short)data[offset]) << 8) | data[offset + 1];
-}
-
-unsigned tpsdGetInt(char* data, int offset)
-{
-  return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
-}
-
-char tpsdGetCharAndAdvanced(char* data, int *offset)
+char tpsdGetChar(unsigned char* data, unsigned *offset)
 {
   char num = data[*offset];
   ++(*offset);
   return num;
 }
 
-unsigned char tpsdGetUnsignedCharAndAdvanced(char* data, int *offset)
+unsigned char tpsdGetUnsignedChar(unsigned char* data, unsigned *offset)
 {
   unsigned char num = (unsigned char)data[*offset];
   ++(*offset);
   return num;
 }
 
-unsigned short tpsdGetShortAndAdvance(char* data, int *offset)
+unsigned short tpsdGetShort(unsigned char* data, unsigned *offset)
 {
   unsigned short num = (short)(((short)data[*offset]) << 8) | data[*offset + 1];
   *offset += sizeof(short);
   return num;
 }
 
-unsigned tpsdGetIntAndAdvance(char* data, int *offset)
+unsigned tpsdGetInt(unsigned char* data, unsigned *offset)
 {
   unsigned num = (data[*offset] << 24) | (data[*offset + 1] << 16) | (data[*offset + 2] << 8) | data[*offset + 3];
   *offset += sizeof(unsigned);
   return num;
 }
 
-tpsdHeader tpsdParsePSDHeader(char* data, int* offset)
+tpsdHeader tpsdParsePSDHeader(unsigned char* data, unsigned* offset)
 {
   tpsdHeader header = { 0 };
-  header.signature = tpsdGetIntAndAdvance(data, offset);
-  TPSD_ASSERT(header.signature == '8BPS');
+  header.signature = tpsdGetInt(data, offset);
+//  TPSD_ASSERT(header.signature == '8BPS');
 
-  header.version = tpsdGetShortAndAdvance(data, offset);
-  TPSD_ASSERT(header.version == 1);
+  header.version = tpsdGetShort(data, offset);
+  //TPSD_ASSERT(header.version == 1);
 
   *offset += 6; //6 bytes reserved here and must be zero;
 
-  header.numChannels = tpsdGetShortAndAdvance(data, offset);
-  header.height = tpsdGetIntAndAdvance(data, offset);
-  header.width = tpsdGetIntAndAdvance(data, offset);
-  header.depth = tpsdGetShortAndAdvance(data, offset);
-  header.mode = tpsdGetShortAndAdvance(data, offset);
+  header.numChannels = tpsdGetShort(data, offset);
+  header.height = tpsdGetInt(data, offset);
+  header.width = tpsdGetInt(data, offset);
+  header.depth = tpsdGetShort(data, offset);
+  header.mode = tpsdGetShort(data, offset);
 
   return header;
 }
 
-tpsdColorModeData tpsdParseColorModeData(char* data, int* offset)
+tpsdColorModeData tpsdParseColorModeData(unsigned char* data, unsigned* offset)
 {
   tpsdColorModeData cmd = { 0 };
 
-  cmd.length = tpsdGetIntAndAdvance(data, offset);
+  cmd.length = tpsdGetInt(data, offset);
   *offset += cmd.length;
   return cmd;
 }
 
-tpsdImageResource tpsdParseImageResource(char* data, int* offset)
+tpsdImageResource tpsdParseImageResource(unsigned unsigned char* data, unsigned* offset)
 {
   tpsdImageResource imageResource = { 0 };
 
-  imageResource.length = tpsdGetIntAndAdvance(data, offset);
+  imageResource.length = tpsdGetInt(data, offset);
   *offset += imageResource.length;
 
   return imageResource;
 }
 
-void tpsdParseLayerAndMaskInfo(char* data, int* offset)
+void tpsdParseLayerAndMaskInfo(unsigned char* data, unsigned* offset)
 {
-  unsigned layerAndMaskInfoSize = tpsdGetIntAndAdvance(data, offset);
+  unsigned layerAndMaskInfoSize = tpsdGetInt(data, offset);
   *offset += layerAndMaskInfoSize;
 }
 
-tpsdImageData tpsdParseImageData(char* data, int* offset, unsigned width, unsigned height, short numChannels)
+tpsdImageData tpsdParseImageData(unsigned char* data, unsigned* offset, unsigned width, unsigned height, short numChannels)
 {
   tpsdImageData imageData = { 0 };
-  unsigned totalPixels = width * height;
 
-  imageData.compressionMethod = tpsdGetShortAndAdvance(data, offset);
+  imageData.compressionMethod = tpsdGetShort(data, offset);
 
   switch (imageData.compressionMethod)
   {
   case 0: // 0 = Raw image data
   {
-    imageData.red = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.red, data + *offset, totalPixels);
-    *offset += totalPixels;
-
-    imageData.green = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.green, data + *offset, totalPixels);
-    *offset += totalPixels;
-
-    imageData.blue = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.blue, data + *offset, totalPixels);
-    *offset += totalPixels;
-
-    imageData.alpha = TPSD_ALLOC(totalPixels);
-    if (numChannels > 3)
-    {
-      memcpy(imageData.alpha, data + *offset, totalPixels);
-      *offset += totalPixels;
-    }
-    else
-      memset(imageData.alpha, 255, totalPixels);
+    imageData.data = TPSD_ALLOC(width * height * numChannels);
+    memcpy(imageData.data, data + *offset, width * height * numChannels);
+    *offset += width * height * numChannels;
   }
     break;
   case 1: // 1 = RLE compressed the image data starts with the byte counts for all the scan lines (rows * channels), with each count stored as a two-byte value.
     //The RLE compressed data follows, with each scan line compressed separately. The RLE compression is the same compression algorithm used by the Macintosh ROM routine PackBits , and the TIFF standard.
   {
     unsigned totalPixels = width * height;
-    unsigned char* buffer = TPSD_ALLOC(numChannels * totalPixels);
+    imageData.data = TPSD_ALLOC(numChannels * totalPixels);
     const char* currentBufferPos = data + *offset;
     *offset += height * numChannels * 2;
     currentBufferPos = data + *offset;
     for (int i = 0; i < numChannels; ++i)
     {
       unsigned currentPixel = 0;
-      unsigned char *bufferPtr = buffer + (i * totalPixels);
+      unsigned char *bufferPtr = imageData.data + (i * totalPixels);
 
       while (currentPixel < totalPixels)
       {
-        int length = tpsdGetCharAndAdvanced(data, offset);
+        int length = tpsdGetChar(data, offset);
         if (length == 128)
         {
           //noop
@@ -278,7 +283,7 @@ tpsdImageData tpsdParseImageData(char* data, int* offset, unsigned width, unsign
           currentPixel += length;
           while (length)
           {
-            unsigned char color = tpsdGetUnsignedCharAndAdvanced(data, offset);
+            unsigned char color = tpsdGetUnsignedChar(data, offset);
             *bufferPtr = color;
             ++bufferPtr;
             --length;
@@ -287,7 +292,7 @@ tpsdImageData tpsdParseImageData(char* data, int* offset, unsigned width, unsign
         else if (length < 0 && length > -128)
         {
           length = -length + 1;
-          unsigned char color = tpsdGetUnsignedCharAndAdvanced(data, offset);
+          unsigned char color = tpsdGetUnsignedChar(data, offset);
           currentPixel += length;
           while (length)
           {
@@ -298,20 +303,6 @@ tpsdImageData tpsdParseImageData(char* data, int* offset, unsigned width, unsign
         }
       }
     }
-    imageData.red = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.red, buffer, totalPixels);
-    imageData.green = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.green, buffer + totalPixels, totalPixels);
-    imageData.blue = TPSD_ALLOC(totalPixels);
-    memcpy(imageData.blue, buffer + totalPixels * 2, totalPixels);
-
-    imageData.alpha = TPSD_ALLOC(totalPixels);
-    if (numChannels > 3)
-      memcpy(imageData.alpha, buffer + totalPixels * 3, totalPixels);
-    else
-      memset(imageData.alpha, 255, totalPixels);
-
-    TPSD_FREE(buffer);
   }
     break;
   case 2: // 2 = ZIP without prediction(Unsupported)
@@ -325,17 +316,89 @@ tpsdImageData tpsdParseImageData(char* data, int* offset, unsigned width, unsign
   return imageData;
 }
 
-int tpsdLoadPSDFromMemory(tpsdPSD* psd, char* data, int len)
+void tpsdProcessBitmap(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.bitmap.data = TPSD_ALLOC(totalPixels / 8);
+  memcpy(psd->compositeImage.bitmap.data, psd->imageData.data, totalPixels / 8);
+}
+
+void tpsdProcessGrayscale8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.grayscale.data = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.grayscale.data, psd->imageData.data, totalPixels);
+}
+
+void tpsdProcessRGB8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.rgb.red = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.red, psd->imageData.data, totalPixels);
+  psd->compositeImage.rgb.green = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.green, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.rgb.blue = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.blue, psd->imageData.data + totalPixels * 2, totalPixels);
+}
+
+void tpsdProcessRGBA8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.rgb.red = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.red, psd->imageData.data, totalPixels);
+  psd->compositeImage.rgb.green = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.green, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.rgb.blue = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.blue, psd->imageData.data + totalPixels * 2, totalPixels);
+  psd->compositeImage.rgb.alpha = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.rgb.alpha, psd->imageData.data + totalPixels * 3, totalPixels);
+}
+
+void tpsdProcessCMY8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
+  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
+}
+
+void tpsdProcessCMYK8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
+  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
+  psd->compositeImage.cmyk.key = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.key, psd->imageData.data + totalPixels * 3, totalPixels);
+}
+
+void tpsdProcessCMYKA8(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
+  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
+  psd->compositeImage.cmyk.key = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.key, psd->imageData.data + totalPixels * 3, totalPixels);
+  psd->compositeImage.cmyk.alpha = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.cmyk.alpha, psd->imageData.data + totalPixels * 4, totalPixels);
+}
+
+int tpsdLoadPSDFromMemory(tpsdPSD* psd, unsigned char* data, int len)
 {
   unsigned offset = 0;
   psd->header = tpsdParsePSDHeader(data, &offset);
 
-  /* Only indexed color and duotone have color mode data. For all other modes, this section is just the 4-byte length field, which is set to zero. */
-  if (psd->header.mode == 2 || psd->header.mode == 8)
-    psd->colorModeData = tpsdParseColorModeData(data, &offset);
-  else
-    offset += 4;
-
+  psd->colorModeData = tpsdParseColorModeData(data, &offset);
   tpsdParseImageResource(data, &offset);
   tpsdParseLayerAndMaskInfo(data, &offset);
 
@@ -347,9 +410,74 @@ int tpsdLoadPSDFromMemory(tpsdPSD* psd, char* data, int len)
 int tpsdLoadPSD(tpsdPSD* psd, const char* file)
 {
   int size = 0;
-  char* data = tpsdReadFileToMemory(file, &size);
+  unsigned char* data = tpsdReadFileToMemory(file, &size);
   if (!data) return TPSD_LOAD_ERROR;
   tpsdLoadPSDFromMemory(psd, data, size);
+
+  switch (psd->header.mode)
+  {
+  case 0:
+    tpsdProcessBitmap(psd);
+    break;
+  case 1:
+    switch (psd->header.depth)
+    {
+    case 8:
+      tpsdProcessGrayscale8(psd);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case 2:
+    break;
+  case 3:
+    switch (psd->header.depth)
+    {
+    case 8:
+      if (psd->header.numChannels == 3)
+        tpsdProcessRGB8(psd);
+      else
+        tpsdProcessRGBA8(psd);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case 4:
+    switch (psd->header.depth)
+    {
+    case 8:
+      if (psd->header.numChannels == 3)
+        tpsdProcessCMY8(psd);
+      else if (psd->header.numChannels == 4)
+        tpsdProcessCMYK8(psd);
+      else
+        tpsdProcessCMYKA8(psd);
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case 5:
+    break;
+  case 6:
+    break;
+  case 7:
+    break;
+  case 8:
+    break;
+  case 9:
+    break;
+  default:
+    break;
+  }
+
   return TPSD_LOAD_OK;
 }
 
