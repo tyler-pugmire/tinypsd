@@ -319,8 +319,8 @@ tpsdImageData tpsdParseImageData(unsigned char* data, unsigned* offset, unsigned
 void tpsdProcessBitmap(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.bitmap.data = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.bitmap.data, psd->imageData.data, totalPixels);
+  psd->compositeImage.bitmap.data = TPSD_ALLOC(totalPixels / 8);
+  memcpy(psd->compositeImage.bitmap.data, psd->imageData.data, totalPixels / 8);
 }
 
 void tpsdProcessGrayscale8(tpsdPSD* psd)
