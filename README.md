@@ -17,7 +17,7 @@
 #### Supported Color Modes
 
 - [X] Bitmap
-- [X] Grayscale (no alpha support yet)
+- [X] Grayscale
 - [ ] Indexed
 - [X] RGB
 - [X] CMYK
