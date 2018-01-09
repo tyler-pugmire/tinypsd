@@ -16,7 +16,7 @@
 
 #### Supported Color Modes
 
-- [ ] Bitmap
+- [X] Bitmap
 - [X] Grayscale (no alpha support yet)
 - [ ] Indexed
 - [X] RGB
@@ -27,7 +27,7 @@
 
 #### Supported Depths
 
-- [ ] 1-bit (Bitmap)
+- [X] 1-bit (Bitmap)
 - [X] 8-bits (Grayscale, RGB, CMYK)
 - [ ] 16-bits
 - [ ] 32-bits
