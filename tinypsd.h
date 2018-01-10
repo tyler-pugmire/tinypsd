@@ -156,6 +156,26 @@ struct tpsdPSD
 #define TPSD_MEMCPY memcpy
 #define TPSD_CALLOC calloc
 
+enum
+{
+  TPSD_BITMAP,
+  TPSD_GRAYSCALE,
+  TPSD_INDEXED,
+  TPSD_RGB,
+  TPSD_CMYK,
+  TPSD_MULTICHANNEL = 7,
+  TPSD_DUOTONE,
+  TPSD_LAB
+};
+
+enum
+{
+  TPSD_RAW,
+  TPSD_RLE,
+  TPSD_ZIP_WITHOUT_PREDITCION,
+  TPSD_ZIP_WITH_PREDICTION,
+};
+
 static unsigned char* tpsdReadFileToMemory(const char* path, int* size)
 {
   unsigned char* data = 0;
@@ -263,14 +283,14 @@ tpsdImageData tpsdParseImageData(unsigned char* data, unsigned* offset, unsigned
 
   switch (imageData.compressionMethod)
   {
-  case 0: // 0 = Raw image data
+  case TPSD_RAW: // 0 = Raw image data
   {
     imageData.data = TPSD_ALLOC(width * height * numChannels);
     memcpy(imageData.data, data + *offset, width * height * numChannels);
     *offset += width * height * numChannels;
   }
     break;
-  case 1: // 1 = RLE compressed the image data starts with the byte counts for all the scan lines (rows * channels), with each count stored as a two-byte value.
+  case TPSD_RLE: // 1 = RLE compressed the image data starts with the byte counts for all the scan lines (rows * channels), with each count stored as a two-byte value.
     //The RLE compressed data follows, with each scan line compressed separately. The RLE compression is the same compression algorithm used by the Macintosh ROM routine PackBits , and the TIFF standard.
   {
     unsigned totalPixels = width * height;
@@ -318,9 +338,9 @@ tpsdImageData tpsdParseImageData(unsigned char* data, unsigned* offset, unsigned
     }
   }
     break;
-  case 2: // 2 = ZIP without prediction(Unsupported)
+  case TPSD_ZIP_WITHOUT_PREDITCION: // 2 = ZIP without prediction(Unsupported)
     break;
-  case 3: // 3 = ZIP with prediction (Unsupported)
+  case TPSD_ZIP_WITH_PREDICTION: // 3 = ZIP with prediction (Unsupported)
     break;
   default:
     break;
@@ -445,10 +465,10 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
 
   switch (psd->header.mode)
   {
-  case 0:
+  case TPSD_BITMAP:
     tpsdProcessBitmap(psd);
     break;
-  case 1:
+  case TPSD_GRAYSCALE:
     switch (psd->header.depth)
     {
     case 8:
@@ -457,17 +477,16 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
       else
         tpsdProcessGrayscale8Alpha(psd);
       break;
-      break;
     case 16:
       break;
     default:
       break;
     }
     break;
-  case 2:
+  case TPSD_INDEXED:
     tpsdProcessIndexed(psd);
     break;
-  case 3:
+  case TPSD_RGB:
     switch (psd->header.depth)
     {
     case 8:
@@ -482,7 +501,8 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
       break;
     }
     break;
-  case 4:
+  case TPSD_CMYK:
+  case TPSD_MULTICHANNEL:
     switch (psd->header.depth)
     {
     case 8:
@@ -498,15 +518,9 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
       break;
     }
     break;
-  case 5:
+  case TPSD_DUOTONE:
     break;
-  case 6:
-    break;
-  case 7:
-    break;
-  case 8:
-    break;
-  case 9:
+  case TPSD_LAB:
     break;
   default:
     break;
