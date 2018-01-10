@@ -18,7 +18,7 @@
 
 - [X] Bitmap
 - [X] Grayscale
-- [ ] Indexed
+- [X] Indexed
 - [X] RGB
 - [X] CMYK
 - [ ] Multichannel
