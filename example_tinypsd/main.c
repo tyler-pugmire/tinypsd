@@ -4,37 +4,77 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-unsigned char CMYKtoRGB(unsigned char cmy, unsigned char k)
-{
-  return (65535 - (cmy * (255 - k) + (k << 8))) >> 8;
-}
-
-#define GET_BIT(v, b) (v & ( 1 << b )) >> b
-
 int main(int argc, char** argv)
 {
   tpsdPSD psd;
-  if (tpsdLoadPSD(&psd, "imgs/test_indexed.psd") == TPSD_LOAD_ERROR)
+  if (tpsdLoadPSD(&psd, "imgs/checkerboard_bitmap.psd") == TPSD_LOAD_ERROR)
   {
 
   }
-  const unsigned totalPixels = psd.header.width * psd.header.height;
-  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 4);
-  if (!pixelData)
-    return 0;
 
-  unsigned colorCount = psd.colorModeData.length / 3;
-  unsigned char* red = psd.colorModeData.data;
-  unsigned char* green = psd.colorModeData.data + colorCount;
-  unsigned char* blue = psd.colorModeData.data + colorCount * 2;
+  tpsdImage* image = tpsdGetImageFromPSD(&psd);
 
-  for (unsigned i = 0; i < totalPixels; ++i)
+  switch (psd.header.mode)
   {
-    pixelData[i * 3] = red[psd.compositeImage.indexed.data[i]];
-    pixelData[i * 3 + 1] = green[psd.compositeImage.indexed.data[i]];
-    pixelData[i * 3 + 2] = blue[psd.compositeImage.indexed.data[i]];
+  case TPSD_BITMAP:
+    stbi_write_png("test.png", psd.header.width, psd.header.height, 1, image->pixels, psd.header.width);
+    break;
+  case TPSD_GRAYSCALE:
+    switch (psd.header.depth)
+    {
+    case 8:
+      if(psd.header.numChannels == 1)
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 1, image->pixels, psd.header.width);
+      else
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 4, image->pixels, psd.header.width * 4);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_INDEXED:
+    stbi_write_png("test.png", psd.header.width, psd.header.height, 3, image->pixels, psd.header.width * 3);
+    break;
+  case TPSD_RGB:
+    switch (psd.header.depth)
+    {
+    case 8:
+      if (psd.header.numChannels == 3)
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 3, image->pixels, psd.header.width * 3);
+      else
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 4, image->pixels, psd.header.width * 4);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_CMYK:
+  case TPSD_MULTICHANNEL:
+    switch (psd.header.depth)
+    {
+    case 8:
+      if (psd.header.numChannels == 3 || psd.header.numChannels == 4)
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 3, image->pixels, psd.header.width * 3);
+      else if (psd.header.numChannels == 5)
+        stbi_write_png("test.png", psd.header.width, psd.header.height, 4, image->pixels, psd.header.width * 4);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_DUOTONE:
+    break;
+  case TPSD_LAB:
+    break;
+  default:
+    break;
   }
 
-  stbi_write_png("test.png", psd.header.width, psd.header.height, 3, pixelData, psd.header.width * 3);
-  TPSD_FREE(pixelData);
+  //TPSD_FREE(pixelData);
 }

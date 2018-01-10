@@ -26,8 +26,10 @@ typedef struct tpsdCMYKImage tpsdCMYKImage;
 
 typedef struct tpsdCompositeImage tpsdCompositeImage;
 typedef struct tpsdPSD tpsdPSD;
+typedef struct tpsdImage tpsdImage;
 
 int tpsdLoadPSD(tpsdPSD* psd, char const* file);
+tpsdImage* tpsdGetImageFromPSD(tpsdPSD* psd);
 
 struct tpsdHeader
 {
@@ -122,6 +124,13 @@ struct tpsdPSD
   tpsdCompositeImage compositeImage;
 };
 
+struct tpsdImage
+{
+  unsigned width;
+  unsigned height;
+  unsigned char* pixels;
+};
+
 ////   end header file   /////////////////////////////////////////////////////
 #endif /* TINYPSD_H */
 
@@ -129,6 +138,7 @@ struct tpsdPSD
 #define TINYPSD_IMPLEMENTATION
 
 #ifdef TINYPSD_IMPLEMENTATION
+#undef TINYPSD_IMPLEMENTATION
 
 #ifdef _WIN32
 
@@ -155,6 +165,13 @@ struct tpsdPSD
 #define TPSD_FREE free
 #define TPSD_MEMCPY memcpy
 #define TPSD_CALLOC calloc
+
+#define TPSD_GET_BIT(v, b) ((v & ( 1 << b )) >> b)
+
+unsigned char tpsdCMYKtoRGB(unsigned char cmy, unsigned char k)
+{
+  return (65535 - (cmy * (255 - k) + (k << 8))) >> 8;
+}
 
 enum
 {
@@ -352,94 +369,70 @@ tpsdImageData tpsdParseImageData(unsigned char* data, unsigned* offset, unsigned
 void tpsdProcessBitmap(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.bitmap.data = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.bitmap.data, psd->imageData.data, totalPixels);
+  psd->compositeImage.bitmap.data = psd->imageData.data;
 }
 
 void tpsdProcessGrayscale8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.grayscale.data = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.grayscale.data, psd->imageData.data, totalPixels);
+  psd->compositeImage.grayscale.data = psd->imageData.data;
 }
 
 void tpsdProcessGrayscale8Alpha(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.grayscale.data = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.grayscale.data, psd->imageData.data, totalPixels);
-  psd->compositeImage.grayscale.alpha = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.grayscale.alpha, psd->imageData.data + totalPixels, totalPixels);
+  psd->compositeImage.grayscale.data = psd->imageData.data;
+  psd->compositeImage.grayscale.alpha = psd->imageData.data + totalPixels;
 }
 
 void tpsdProcessIndexed(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.indexed.data = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.indexed.data, psd->imageData.data, totalPixels);
+  psd->compositeImage.indexed.data = psd->imageData.data;
 }
 
 void tpsdProcessRGB8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.rgb.red = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.red, psd->imageData.data, totalPixels);
-  psd->compositeImage.rgb.green = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.green, psd->imageData.data + totalPixels, totalPixels);
-  psd->compositeImage.rgb.blue = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.blue, psd->imageData.data + totalPixels * 2, totalPixels);
+  psd->compositeImage.rgb.red = psd->imageData.data;
+  psd->compositeImage.rgb.green = psd->imageData.data + totalPixels;
+  psd->compositeImage.rgb.blue = psd->imageData.data + totalPixels * 2;
 }
 
 void tpsdProcessRGBA8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.rgb.red = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.red, psd->imageData.data, totalPixels);
-  psd->compositeImage.rgb.green = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.green, psd->imageData.data + totalPixels, totalPixels);
-  psd->compositeImage.rgb.blue = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.blue, psd->imageData.data + totalPixels * 2, totalPixels);
-  psd->compositeImage.rgb.alpha = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.rgb.alpha, psd->imageData.data + totalPixels * 3, totalPixels);
+  psd->compositeImage.rgb.red = psd->imageData.data;
+  psd->compositeImage.rgb.green = psd->imageData.data + totalPixels;
+  psd->compositeImage.rgb.blue = psd->imageData.data + totalPixels * 2;
+  psd->compositeImage.rgb.alpha = psd->imageData.data + totalPixels * 3;
 }
 
 void tpsdProcessCMY8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
-  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
-  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
+  psd->compositeImage.cmyk.cyan = psd->imageData.data;
+  psd->compositeImage.cmyk.magenta = psd->imageData.data + totalPixels;
+  psd->compositeImage.cmyk.yellow = psd->imageData.data + totalPixels * 2;
 }
 
 void tpsdProcessCMYK8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
-  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
-  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
-  psd->compositeImage.cmyk.key = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.key, psd->imageData.data + totalPixels * 3, totalPixels);
+  psd->compositeImage.cmyk.cyan = psd->imageData.data;
+  psd->compositeImage.cmyk.magenta = psd->imageData.data + totalPixels;
+  psd->compositeImage.cmyk.yellow = psd->imageData.data + totalPixels * 2;
+  psd->compositeImage.cmyk.key = psd->imageData.data + totalPixels * 3;
 }
 
 void tpsdProcessCMYKA8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
-  psd->compositeImage.cmyk.cyan = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.cyan, psd->imageData.data, totalPixels);
-  psd->compositeImage.cmyk.magenta = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.magenta, psd->imageData.data + totalPixels, totalPixels);
-  psd->compositeImage.cmyk.yellow = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.yellow, psd->imageData.data + totalPixels * 2, totalPixels);
-  psd->compositeImage.cmyk.key = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.key, psd->imageData.data + totalPixels * 3, totalPixels);
-  psd->compositeImage.cmyk.alpha = TPSD_ALLOC(totalPixels);
-  memcpy(psd->compositeImage.cmyk.alpha, psd->imageData.data + totalPixels * 4, totalPixels);
+  psd->compositeImage.cmyk.cyan = psd->imageData.data;
+  psd->compositeImage.cmyk.magenta = psd->imageData.data + totalPixels;
+  psd->compositeImage.cmyk.yellow = psd->imageData.data + totalPixels * 2;
+  psd->compositeImage.cmyk.key = psd->imageData.data + totalPixels * 3;
+  psd->compositeImage.cmyk.alpha = psd->imageData.data + totalPixels * 4;
 }
 
 int tpsdLoadPSDFromMemory(tpsdPSD* psd, unsigned char* data, int len)
@@ -527,6 +520,231 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
   }
 
   return TPSD_LOAD_OK;
+}
+
+unsigned char* tpsdGetBitmapFromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 8);
+  if (!pixelData)
+    return 0;
+  
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 8] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 0) * 255;
+    pixelData[i * 8 + 1] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 1) * 255;
+    pixelData[i * 8 + 2] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 2) * 255;
+    pixelData[i * 8 + 3] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 3) * 255;
+    pixelData[i * 8 + 4] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 4) * 255;
+    pixelData[i * 8 + 5] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 5) * 255;
+    pixelData[i * 8 + 6] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 6) * 255;
+    pixelData[i * 8 + 7] = TPSD_GET_BIT(psd->compositeImage.bitmap.data[i], 7) * 255;
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetGrayscale8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels);
+  if (!pixelData)
+    return 0;
+
+  memcpy(pixelData, psd->compositeImage.grayscale.data, totalPixels);
+  return pixelData;
+}
+
+unsigned char* tpsdGetGrayscale8AlphaFromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 4);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 4] = psd->compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 1] = psd->compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 2] = psd->compositeImage.grayscale.data[i];
+    pixelData[i * 4 + 3] = psd->compositeImage.grayscale.alpha[i];
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetIndexedFromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 3);
+  if (!pixelData)
+    return 0;
+
+  unsigned colorCount = psd->colorModeData.length / 3;
+  unsigned char* red = psd->colorModeData.data;
+  unsigned char* green = psd->colorModeData.data + colorCount;
+  unsigned char* blue = psd->colorModeData.data + colorCount * 2;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 3] = red[psd->compositeImage.indexed.data[i]];
+    pixelData[i * 3 + 1] = green[psd->compositeImage.indexed.data[i]];
+    pixelData[i * 3 + 2] = blue[psd->compositeImage.indexed.data[i]];
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetRGB8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 3);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 3] = psd->compositeImage.rgb.red[i];
+    pixelData[i * 3 + 1] = psd->compositeImage.rgb.green[i];
+    pixelData[i * 3 + 2] = psd->compositeImage.rgb.blue[i];
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetRGBA8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 4);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 4] = psd->compositeImage.rgb.red[i];
+    pixelData[i * 4 + 1] = psd->compositeImage.rgb.green[i];
+    pixelData[i * 4 + 2] = psd->compositeImage.rgb.blue[i];
+    pixelData[i * 4 + 3] = psd->compositeImage.rgb.alpha[i];
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetCMY8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 3);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 3] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.cyan[i], 255);
+    pixelData[i * 3 + 1] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.magenta[i], 255);
+    pixelData[i * 3 + 2] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.yellow[i], 255);
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetCMYK8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 3);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 3] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.cyan[i], (255 - psd->compositeImage.cmyk.key[i]));
+    pixelData[i * 3 + 1] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.magenta[i], 255 - psd->compositeImage.cmyk.key[i]);
+    pixelData[i * 3 + 2] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.yellow[i], 255 - psd->compositeImage.cmyk.key[i]);
+  }
+  return pixelData;
+}
+
+unsigned char* tpsdGetCMYKA8FromPSD(tpsdPSD* psd)
+{
+  const unsigned totalPixels = psd->header.width * psd->header.height;
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 4);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 4] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.cyan[i], 255 - psd->compositeImage.cmyk.key[i]);
+    pixelData[i * 4 + 1] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.magenta[i], 255 - psd->compositeImage.cmyk.key[i]);
+    pixelData[i * 4 + 2] = tpsdCMYKtoRGB(255 - psd->compositeImage.cmyk.yellow[i], 255 - psd->compositeImage.cmyk.key[i]);
+    pixelData[i * 4 + 3] = psd->compositeImage.cmyk.alpha[i];
+  }
+  return pixelData;
+}
+
+tpsdImage* tpsdGetImageFromPSD(tpsdPSD* psd) 
+{
+  tpsdImage* image = TPSD_ALLOC(sizeof(tpsdImage));
+  image->width = psd->header.width;
+  image->height = psd->header.height;
+
+  switch (psd->header.mode)
+  {
+  case TPSD_BITMAP:
+    image->pixels = tpsdGetBitmapFromPSD(psd);
+    break;
+  case TPSD_GRAYSCALE:
+    switch (psd->header.depth)
+    {
+    case 8:
+      if(psd->header.numChannels == 1)
+        image->pixels = tpsdGetGrayscale8FromPSD(psd);
+      else
+        image->pixels = tpsdGetGrayscale8AlphaFromPSD(psd);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_INDEXED:
+    image->pixels = tpsdGetIndexedFromPSD(psd);
+    break;
+  case TPSD_RGB:
+    switch (psd->header.depth)
+    {
+    case 8:
+      if (psd->header.numChannels == 3)
+        image->pixels = tpsdGetRGB8FromPSD(psd);
+      else
+        image->pixels = tpsdGetRGBA8FromPSD(psd);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_CMYK:
+  case TPSD_MULTICHANNEL:
+    switch (psd->header.depth)
+    {
+    case 8:
+      if (psd->header.numChannels == 3)
+        image->pixels = tpsdGetCMY8FromPSD(psd);
+      else if (psd->header.numChannels == 4)
+        image->pixels = tpsdGetCMYK8FromPSD(psd);
+      else
+        image->pixels = tpsdGetCMYKA8FromPSD(psd);
+      break;
+    case 16:
+      break;
+    default:
+      break;
+    }
+    break;
+  case TPSD_DUOTONE:
+    break;
+  case TPSD_LAB:
+    break;
+  default:
+    break;
+  }
+
+  return image;
 }
 
 #endif /* TINYPSD_IMPLEMENTATION */
