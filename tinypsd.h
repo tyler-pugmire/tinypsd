@@ -20,6 +20,7 @@ typedef struct tpsdImageData tpsdImageData;
 
 typedef struct tpsdBitmapImage tpsdBitmapImage;
 typedef struct tpsdGrayscaleImage tpsdGrayscaleImage;
+typedef struct tpsdIndexedImage tpsdIndexedImage;
 typedef struct tpsdRGBImage tpsdRGBImage;
 typedef struct tpsdCMYKImage tpsdCMYKImage;
 
@@ -43,7 +44,7 @@ struct tpsdHeader
 struct tpsdColorModeData
 {
   unsigned length;
-  char* data;
+  unsigned char* data;
 };
 
 struct tpsdImageResource
@@ -72,6 +73,11 @@ struct tpsdGrayscaleImage
   unsigned char* alpha;
 };
 
+struct tpsdIndexedImage
+{
+  unsigned char* data;
+};
+
 struct tpsdRGBImage
 {
   unsigned char* red;
@@ -95,6 +101,7 @@ struct tpsdCompositeImage
   {
     tpsdBitmapImage bitmap;
     tpsdGrayscaleImage grayscale;
+    tpsdIndexedImage indexed;
     tpsdRGBImage rgb;
     tpsdCMYKImage cmyk;
   };
@@ -223,6 +230,11 @@ tpsdColorModeData tpsdParseColorModeData(unsigned char* data, unsigned* offset)
   tpsdColorModeData cmd = { 0 };
 
   cmd.length = tpsdGetInt(data, offset);
+  if (cmd.length > 0)
+  {
+    cmd.data = TPSD_ALLOC(cmd.length);
+    memcpy(cmd.data, data + *offset, cmd.length);
+  }
   *offset += cmd.length;
   return cmd;
 }
@@ -340,6 +352,13 @@ void tpsdProcessGrayscale8Alpha(tpsdPSD* psd)
   memcpy(psd->compositeImage.grayscale.alpha, psd->imageData.data + totalPixels, totalPixels);
 }
 
+void tpsdProcessIndexed(tpsdPSD* psd)
+{
+  unsigned totalPixels = psd->header.width * psd->header.height;
+  psd->compositeImage.indexed.data = TPSD_ALLOC(totalPixels);
+  memcpy(psd->compositeImage.indexed.data, psd->imageData.data, totalPixels);
+}
+
 void tpsdProcessRGB8(tpsdPSD* psd)
 {
   unsigned totalPixels = psd->header.width * psd->header.height;
@@ -446,6 +465,7 @@ int tpsdLoadPSD(tpsdPSD* psd, const char* file)
     }
     break;
   case 2:
+    tpsdProcessIndexed(psd);
     break;
   case 3:
     switch (psd->header.depth)

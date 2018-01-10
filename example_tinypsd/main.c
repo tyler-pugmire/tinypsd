@@ -14,7 +14,7 @@ unsigned char CMYKtoRGB(unsigned char cmy, unsigned char k)
 int main(int argc, char** argv)
 {
   tpsdPSD psd;
-  if (tpsdLoadPSD(&psd, "imgs/Cloud.psd") == TPSD_LOAD_ERROR)
+  if (tpsdLoadPSD(&psd, "imgs/test_indexed.psd") == TPSD_LOAD_ERROR)
   {
 
   }
@@ -23,14 +23,18 @@ int main(int argc, char** argv)
   if (!pixelData)
     return 0;
 
+  unsigned colorCount = psd.colorModeData.length / 3;
+  unsigned char* red = psd.colorModeData.data;
+  unsigned char* green = psd.colorModeData.data + colorCount;
+  unsigned char* blue = psd.colorModeData.data + colorCount * 2;
+
   for (unsigned i = 0; i < totalPixels; ++i)
   {
-    pixelData[i * 4] = psd.compositeImage.grayscale.data[i];
-    pixelData[i * 4 + 1] = psd.compositeImage.grayscale.data[i];
-    pixelData[i * 4 + 2] = psd.compositeImage.grayscale.data[i];
-    pixelData[i * 4 + 3] = 255 - psd.compositeImage.grayscale.alpha[i];
+    pixelData[i * 3] = red[psd.compositeImage.indexed.data[i]];
+    pixelData[i * 3 + 1] = green[psd.compositeImage.indexed.data[i]];
+    pixelData[i * 3 + 2] = blue[psd.compositeImage.indexed.data[i]];
   }
 
-  stbi_write_png("test.png", psd.header.width, psd.header.height, 4, pixelData, psd.header.width * 4);
+  stbi_write_png("test.png", psd.header.width, psd.header.height, 3, pixelData, psd.header.width * 3);
   TPSD_FREE(pixelData);
 }
