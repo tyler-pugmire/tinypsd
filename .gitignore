@@ -289,3 +289,6 @@ __pycache__/
 *.png
 *.bmp
 *.ACT
+
+# Specific files ignore
+drone.psd

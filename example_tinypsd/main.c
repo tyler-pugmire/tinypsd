@@ -7,7 +7,7 @@
 int main(int argc, char** argv)
 {
   tpsdPSD psd;
-  if (tpsdLoadPSD(&psd, "imgs/checkerboard_bitmap.psd") == TPSD_LOAD_ERROR)
+  if (tpsdLoadPSD(&psd, "imgs/drone.psd") == TPSD_LOAD_ERROR)
   {
 
   }
@@ -75,6 +75,25 @@ int main(int argc, char** argv)
   default:
     break;
   }
+
+  unsigned totalPixels = psd.header.width * psd.header.height;
+  tpsdLayer* layer = &psd.layers[2];
+  unsigned char* a = layer->data;
+  unsigned char* red = layer->data + totalPixels;
+  unsigned char* green = layer->data + totalPixels * 2;
+  unsigned char* blue = layer->data + totalPixels * 3;
+
+  unsigned char *pixelData = TPSD_ALLOC(totalPixels * 3);
+  if (!pixelData)
+    return 0;
+
+  for (unsigned i = 0; i < totalPixels; ++i)
+  {
+    pixelData[i * 3] = red[i];
+    pixelData[i * 3 + 1] = green[i];
+    pixelData[i * 3 + 2] = blue[i];
+  }
+  stbi_write_png("test_layer.png", layer->right - layer->left, layer->bottom - layer->top, 3, pixelData, (layer->bottom - layer->top) * 3);
 
   //TPSD_FREE(pixelData);
 }
